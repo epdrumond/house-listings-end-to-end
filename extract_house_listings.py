@@ -1,6 +1,6 @@
 from bs4 import BeautifulSoup
 
-def extract_house_listings(file_path):
+def extract_house_listings(file_path: str) -> list:
     """"
     Extracts house listings from a local HTML file and returns a list of dictionaries with relevant details.
 
