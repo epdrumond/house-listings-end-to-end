@@ -1,0 +1,3 @@
+house_use_name,house_use_url_string
+rent,aluguel
+buy,venda
