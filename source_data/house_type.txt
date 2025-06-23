@@ -1,0 +1,13 @@
+house_type_name,house_type_url_string
+Apartment,apartamento_residencial
+Studio,kitnet_residencial
+House,casa_residencial
+Townhouse,sobrado_residencial
+Condo House,condominio_residencial
+Village House,casa-vila_residencial
+Penthouse,cobertura_residencial
+Flat,flat_residencial
+Loft,loft_residencial
+Residential Lot,lote-terreno_residencial
+Ranch,granja_residencial
+Studio,studio_residencial

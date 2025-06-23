@@ -1,5 +1,7 @@
 import urllib.parse
 import unicodedata
+from unidecode import unidecode
+import pandas as pd
 
 def build_location_query(state, city, latitude, longitude):
     ''''
@@ -19,8 +21,8 @@ def build_location_query(state, city, latitude, longitude):
     city_enc = urllib.parse.quote(city)
     
     # Remove accents for second URL reference
-    state_noaccents = unicodedata.normalize('NFKD', state).encode('ASCII', 'ignore').decode('ASCII')
-    city_noaccents = unicodedata.normalize('NFKD', city).encode('ASCII', 'ignore').decode('ASCII')
+    state_noaccents = "+".join(unicodedata.normalize('NFKD', state).encode('ASCII', 'ignore').decode('ASCII').split())
+    city_noaccents = "+".join(unicodedata.normalize('NFKD', city).encode('ASCII', 'ignore').decode('ASCII').split())
 
     # Build the string
     query = (
@@ -29,11 +31,61 @@ def build_location_query(state, city, latitude, longitude):
         f"{latitude}%2C{longitude}%2C"
     )
 
-    print(state_enc, state_noaccents)
-    print(city_enc, city_noaccents)
-
     return query
 
-def build_url(base_url: str, params: dict) -> str:
+
+def map_parameters(params: dict) -> dict:
+    """
+    Maps the parameters to their respective values for the URL.
+
+    Parameters:
+        params (dict): A dictionary of the parameters to be mapped and the files with all possible values. 
+            Parameter keys are displayed in portuguese, as they are going to be used in a URL.
+
+    Returns:
+        dict: A dictionary with the mapped parameters.
+    """
+    url_params = {}
+
+    # Transaction type (sell or rent)
+    if params["transacao"]:
+        url_params["transacao"] = pd.read_csv(params["transacao"])["house_use_url_string"].values.tolist()
+    else:
+        url_params["transacao"] = ["venda"]
+
+    # There are two location parameters in the URL. Since they are not independet from each other, 
+    # we are going to map them together.
+
+    # Location 
+    locations_df = pd.read_csv(params["onde"]) 
+    locations_df["base_url_location"] = locations_df.apply(
+        lambda row: f"""{row['state_code'].lower()}+{'-'.join(unidecode(row['capital']).split()).lower()}""", axis=1
+    )
+    locations_df["url_location_query"] = locations_df.apply(
+        lambda row: build_location_query(
+            row["state"], 
+            row["capital"], 
+            row["latitude"], 
+            row["longitude"]
+            ), axis=1
+    )
+    url_params["onde"] = locations_df[["base_url_location", "url_location_query"]].values.tolist()
+
+    # Listings type 
+    url_params["tipos"] = pd.read_csv(params["tipos"])["house_type_url_string"].values.tolist()
+
+    return url_params
+
+
+
+
+# https://www.zapimoveis.com.br/
+#     venda/
+#     apartamentos/
+#     ce+fortaleza/
+#     ?onde=%2CCear%C3%A1%2CFortaleza%2C%2C%2C%2C%2Ccity%2CBR%3ECeara%3ENULL%3EFortaleza%2C-3.73272%2C-38.527013%2C
+#     &tipos=apartamento_residencial
+#     &transacao=venda
+
     
 
