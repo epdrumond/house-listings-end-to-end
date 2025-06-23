@@ -6,16 +6,14 @@ import itertools
 
 from utils import *
 
-URL = "https://www.zapimoveis.com.br/aluguel/apartamentos/ce+fortaleza/?onde=%2CCear%C3%A1%2CFortaleza%2C%2C%2C%2C%2Ccity%2CBR%3ECeara%3ENULL%3EFortaleza%2C-3.73272%2C-38.527013%2C&tipos=apartamento_residencial&transacao=aluguel&origem=busca-recente"
-
 URL_PARAMS = {
     "transacao": "source_data/house_use.txt",
     "tipos": "source_data/house_type.txt",
-    "onde": "source_data/cities.txt",
-    
+    "onde": "source_data/cities.txt"    
 }
+DESTINATION_FOLDER = "scraped_data/"
 
-def scrape_listings(base_url):
+def scrape_listings(base_url: str, destination_file: str) -> str:
     page = 1
     while True:
 
@@ -23,7 +21,8 @@ def scrape_listings(base_url):
         url = f"{base_url}&pagina={page}"
         response = requests.get(url)
         if response.status_code == 200:
-            with open(f"house_listings_page{page}.html", "w", encoding="utf-8") as file:
+            file_name = f"{DESTINATION_FOLDER}{destination_file}_p{page}.html"
+            with open(file_name, "w", encoding="utf-8") as file:
                 file.write(response.text)
         else:
             return "Error: Unable to fetch data from the URL."
@@ -47,22 +46,24 @@ def get_house_listings() -> None:
     # Map parameters to be used in setting up the scraping URLs
     url_params = map_parameters(URL_PARAMS)
 
-    # Generate an URL for each parameter combination
-    scraping_urls = {}
-    
+    # Loop through all combinations of parameters and scrape listings
     param_combinations = itertools.product(*url_params.values())
     param_combinations = [dict(zip(url_params.keys(), combination)) for combination in param_combinations]
-    for combination in param_combinations:
+    for idx, combination in enumerate(param_combinations):
+        # Generate an URL for each parameter combination
         transaction_type = combination["transacao"]
         base_location = combination["onde"][0]
         listing_type = combination["tipos"]
         query_location = combination["onde"][1]
 
         combination_name = f"{transaction_type}_{base_location}_{listing_type}"
-        scraping_urls[combination_name] = f"{BASE_URL}{transaction_type}/imoveis/{base_location}/?onde={query_location}?tipos={listing_type}&transacao={transaction_type}"
+        combination_url = f"{BASE_URL}{transaction_type}/imoveis/{base_location}/?onde={query_location}?tipos={listing_type}&transacao={transaction_type}"
 
-        print(scraping_urls)
-        break
+        # Scrape the listings for the current combination
+        scrape_listings(combination_url, combination_name)
+        
+        if idx > 5:
+            break
 
 if __name__ == "__main__":
     get_house_listings()
