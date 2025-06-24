@@ -3,27 +3,39 @@ from bs4 import BeautifulSoup
 import time
 import random
 import itertools 
+from datetime import datetime
 
 from utils import *
+from extract_house_listings import extract_house_listings
 
 URL_PARAMS = {
     "transacao": "source_data/house_use.txt",
     "tipos": "source_data/house_type.txt",
     "onde": "source_data/cities.txt"    
 }
-DESTINATION_FOLDER = "scraped_data/"
 
-def scrape_listings(base_url: str, destination_file: str) -> str:
+def scrape_listings(base_url: str) -> list:
+    """    
+    Scrapes house listings from a given URL and returns a list of listings.  
+    Parameters:
+        base_url (str): The base URL to scrape listings from.
+    Returns:
+        list: A list of dictionaries, each containing details of a house listing.
+    Raises:
+        ValueError: If the URL is invalid or if the page content cannot be fetched.
+    """
+
     page = 1
     while True:
 
         # Extract data from the URL with the current page number
+        listings_data = []
+
         url = f"{base_url}&pagina={page}"
         response = requests.get(url)
         if response.status_code == 200:
-            file_name = f"{DESTINATION_FOLDER}{destination_file}_p{page}.html"
-            with open(file_name, "w", encoding="utf-8") as file:
-                file.write(response.text)
+            page_content = response.text
+            listings_data.append(extract_house_listings(page_content))
         else:
             return "Error: Unable to fetch data from the URL."
         
@@ -36,6 +48,8 @@ def scrape_listings(base_url: str, destination_file: str) -> str:
 
         # Sleep to avoid overwhelming the server
         time.sleep(random.uniform(1, 5))
+
+    return listings_data
     
 def get_house_listings() -> None:
     """
@@ -47,6 +61,8 @@ def get_house_listings() -> None:
     url_params = map_parameters(URL_PARAMS)
 
     # Loop through all combinations of parameters and scrape listings
+    scraping_date = datetime.now().strftime("%Y-%m-%d")
+
     param_combinations = itertools.product(*url_params.values())
     param_combinations = [dict(zip(url_params.keys(), combination)) for combination in param_combinations]
     for idx, combination in enumerate(param_combinations):
@@ -60,10 +76,12 @@ def get_house_listings() -> None:
         combination_url = f"{BASE_URL}{transaction_type}/imoveis/{base_location}/?onde={query_location}?tipos={listing_type}&transacao={transaction_type}"
 
         # Scrape the listings for the current combination
-        scrape_listings(combination_url, combination_name)
+        listings_data = (combination_name, scraping_date, scrape_listings(combination_url))
+
+        # Input scraped data into staging table
         
-        if idx > 5:
-            break
+        print(listings_data)
+        break
 
 if __name__ == "__main__":
     get_house_listings()

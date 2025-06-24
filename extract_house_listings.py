@@ -1,18 +1,15 @@
 from bs4 import BeautifulSoup
 
-def extract_house_listings(file_path: str) -> list:
+def extract_house_listings(page_content: str) -> list:
     """"
     Extracts house listings from a local HTML file and returns a list of dictionaries with relevant details.
 
     Parameters:
-    file_path (str): The path to the HTML file containing the house listings.
+        page_content (str): String containing the HTML content of the page.
     Returns:
-    list: A list of dictionaries, each containing details of a house listing.
+        list: A list of dictionaries, each containing details of a house listing.
     """
-    with open(file_path, "r", encoding="utf-8") as file:
-        content = file.read()
-    
-    soup = BeautifulSoup(content, "html.parser")
+    soup = BeautifulSoup(page_content, "html.parser")
     
     fields_mapping = {
         "listings": ("li", {"data-cy": "rp-property-cd"}),
@@ -52,8 +49,12 @@ def extract_house_listings(file_path: str) -> list:
     
     return listings
 
-if __name__ == "__main__":
-    file_path = "house_listings.html"
-    listings = extract_house_listings(file_path)
-    print(listings)
-    
+
+def insert_staging_data(listings: list, staging_schema: str, staging_table: str) -> None:
+    """
+    Inserts the extracted house listings into a staging table in the database.
+    Parameters:
+        listings (list): A list of dictionaries containing house listing details.
+        staging_schema (str): The schema name for the staging table.
+        staging_table (str): The name of the staging table. 
+    """
