@@ -84,7 +84,11 @@ def get_house_listings() -> None:
         break
 
 if __name__ == "__main__":
-    get_house_listings()
+    cur, conn = connect_to_db()
+    
+    cur.execute("SELECT 1")
+    print(cur.fetchall())
+    
     
 
         

@@ -3,6 +3,10 @@ import unicodedata
 from unidecode import unidecode
 import pandas as pd
 
+import os
+from dotenv import load_dotenv
+import psycopg2
+
 def build_location_query(state, city, latitude, longitude):
     ''''
     Builds a query string for a location based on state, city, latitude, and longitude.
@@ -77,15 +81,45 @@ def map_parameters(params: dict) -> dict:
     return url_params
 
 
+def connect_to_db() -> str:
+    """
+    Connects to the SQLite database.
+
+    Parameters:
+        db_path (str): The path to the SQLite database file.
+
+    Returns:
+        
+    """
+
+    # Load environment variables from .env file
+    load_dotenv()
+
+    host = os.getenv("POSTGRES_HOST")
+    user = os.getenv("POSTGRES_USER")
+    password = os.getenv("POSTGRES_PASSWORD")
+    database = os.getenv("POSTGRES_DB")
+
+    # Connect to the PostgreSQL database
+    conn = psycopg2.connect(
+        host=host,
+        user=user,      
+        password=password,
+        database=database
+    )
+    cur = conn.cursor()
+
+    return cur, conn
+
+if __name__ == "__main__":
+    pass
+    # cur, conn = connect_to_db()
+
+    # cur.execute("SELECT version();")
+    # print(cur.fetchone())
 
 
-# https://www.zapimoveis.com.br/
-#     venda/
-#     apartamentos/
-#     ce+fortaleza/
-#     ?onde=%2CCear%C3%A1%2CFortaleza%2C%2C%2C%2C%2Ccity%2CBR%3ECeara%3ENULL%3EFortaleza%2C-3.73272%2C-38.527013%2C
-#     &tipos=apartamento_residencial
-#     &transacao=venda
+
 
     
 
