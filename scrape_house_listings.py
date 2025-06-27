@@ -4,6 +4,7 @@ import time
 import random
 import itertools 
 from datetime import datetime
+import pandas as pd
 
 from utils import *
 from extract_house_listings import extract_house_listings
@@ -24,21 +25,21 @@ def scrape_listings(base_url: str) -> list:
     Raises:
         ValueError: If the URL is invalid or if the page content cannot be fetched.
     """
-
+    
+    listings_data = []
     page = 1
+
     while True:
 
-        # Extract data from the URL with the current page number
-        listings_data = []
-
+        # Extract data from the URL with the current page number    
         url = f"{base_url}&pagina={page}"
         response = requests.get(url)
         if response.status_code == 200:
             page_content = response.text
-            listings_data.append(extract_house_listings(page_content))
+            listings_data.extend(extract_house_listings(page_content))
         else:
             return "Error: Unable to fetch data from the URL."
-        
+
         # Check for a next page
         soup = BeautifulSoup(response.text, "html.parser")
         next_page = soup.find("button", {"data-testid": "next-page"})
@@ -48,6 +49,12 @@ def scrape_listings(base_url: str) -> list:
 
         # Sleep to avoid overwhelming the server
         time.sleep(random.uniform(1, 5))
+
+    # Validate the amount of listings found matches the page header 
+    total_listings = int(soup.find("h1", {"data-cy": "rp-searchTitle-txt"}).get_text().split()[0])
+    if total_listings != len(listings_data):
+        print(total_listings, len(listings_data))
+        raise ValueError(f"Expected {total_listings} listings, but found {len(listings_data)}.")    
 
     return listings_data
     
@@ -76,18 +83,17 @@ def get_house_listings() -> None:
         combination_url = f"{BASE_URL}{transaction_type}/imoveis/{base_location}/?onde={query_location}?tipos={listing_type}&transacao={transaction_type}"
 
         # Scrape the listings for the current combination
-        listings_data = (combination_name, scraping_date, scrape_listings(combination_url))
+        combination_data = scrape_listings(combination_url)
 
-        # Input scraped data into staging table
-        
-        print(listings_data)
+        if len(combination_data) == 0:
+            print(f"No listings found for combination: {combination_name}")
+            continue
+
+        # Extract relevant data from the listings
         break
 
 if __name__ == "__main__":
-    cur, conn = connect_to_db()
-    
-    cur.execute("SELECT 1")
-    print(cur.fetchall())
+    get_house_listings()
     
     
 
