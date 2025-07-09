@@ -53,7 +53,6 @@ def scrape_listings(base_url: str) -> list:
     # Validate the amount of listings found matches the page header 
     total_listings = int(soup.find("h1", {"data-cy": "rp-searchTitle-txt"}).get_text().split()[0])
     if total_listings != len(listings_data):
-        print(total_listings, len(listings_data))
         raise ValueError(f"Expected {total_listings} listings, but found {len(listings_data)}.")    
 
     return listings_data
@@ -83,13 +82,16 @@ def get_house_listings() -> None:
         combination_url = f"{BASE_URL}{transaction_type}/imoveis/{base_location}/?onde={query_location}?tipos={listing_type}&transacao={transaction_type}"
 
         # Scrape the listings for the current combination
-        combination_data = scrape_listings(combination_url)
+        combination_data = pd.DataFrame(scrape_listings(combination_url))
 
         if len(combination_data) == 0:
             print(f"No listings found for combination: {combination_name}")
             continue
 
         # Extract relevant data from the listings
+        # print(combination_data["price"])
+        transformed_combination_data = transform_data(combination_data)
+        print(transformed_combination_data["price"].dropna())
         break
 
 if __name__ == "__main__":

@@ -111,6 +111,106 @@ def connect_to_db() -> str:
 
     return cur, conn
 
+
+def transform_data(data: pd.DataFrame) -> pd.DataFrame:
+    """
+    Transforms the raw data into a format suitable for insertion into the database.
+
+    Parameters:
+        data (pd.DataFrame): The raw data to be transformed.
+
+    Returns:
+        pd.DataFrame: The transformed data ready for insertion.
+    """
+    transformed_data = data.copy()
+
+    # Field transform: link
+    transformed_data["id"] = [
+        link.split("-id-")[1].split("/")[0] 
+        for link in transformed_data["link"]
+    ]
+
+    # Field transform: location
+    transformed_data["listing_info"] = [
+        loc.split(" em ")[0] 
+        for loc in transformed_data["location"]
+    ]
+    transformed_data["region"] = [
+        loc.split(" em ")[1].split(",")[0] 
+        for loc in transformed_data["location"]
+    ]
+    transformed_data.drop(columns=["location"], inplace=True)
+    
+    # Field transform: size
+    transformed_data["size_m2"] = [
+        int(size.replace("Tamanho do imóvel ", "").split(" m²")[0])
+        for size in transformed_data["size"]
+    ]
+    transformed_data.drop(columns=["size"], inplace=True)
+
+    #Field transform: bedrooms 
+    transformed_data["bedrooms"] = [
+        int(bedrooms.replace("Quantidade de quartos ", ""))
+        for bedrooms in transformed_data["bedrooms"].fillna("0")
+    ]
+
+    #Field transform: bathrooms 
+    transformed_data["bathrooms"] = [
+        int(bathrooms.replace("Quantidade de banheiros ", ""))
+        for bathrooms in transformed_data["bathrooms"].fillna("0")
+    ]
+
+    #Field transform: parking_spaces 
+    transformed_data["parking_spaces"] = [
+        int(parking.replace("Quantidade de vagas de garagem ", ""))
+        for parking in transformed_data["parking_spaces"].fillna("0")
+    ]
+
+    #Field transform: price 
+    transformed_data["iptu"] = [
+        price.split("IPTU R$ ")[1] 
+        if "IPTU R$ " in price 
+        else None
+        for price in transformed_data["price"]
+    ]
+    transformed_data["condominium"] = [
+        price.split("Cond. R$ ")[1].split("•")[0]
+        if "Cond. R$ " in price 
+        else None
+        for price in transformed_data["price"]
+    ]
+    transformed_data["price"] = [
+        price.split("/mês")[0].replace("R$ ", "")
+        if "R$ " in price 
+        else None
+        for price in transformed_data["price"]
+    ]
+
+    # Additional transformations can be added here as needed
+    return transformed_data
+
+def insert_raw_data(cur, conn, schema_name: str, table_name: str, data: list) -> None:
+    """
+    Inserts raw data into the specified table in the database.
+
+    Parameters:
+        cur (cursor): The database cursor.
+        conn (connection): The database connection.
+        schema_name (str): The name of the schema where the table is located.
+        table_name (str): The name of the table to insert data into.
+        data (list): A list of dictionaries containing the data to be inserted.
+    """
+    if not data:
+        return
+    
+    columns = data[0].keys()
+    values = [[item[col] for col in columns] for item in data]
+
+    insert_query = f"INSERT INTO {table_name} ({', '.join(columns)}) VALUES %s"
+    
+    psycopg2.extras.execute_values(cur, insert_query, values)
+    conn.commit()
+
 if __name__ == "__main__":
     pass
     # cur, conn = connect_to_db()

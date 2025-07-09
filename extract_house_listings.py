@@ -46,15 +46,5 @@ def extract_house_listings(page_content: str) -> list:
                 listing_dict[field] = None
 
         listings.append(listing_dict)
-    
+
     return listings
-
-
-def insert_staging_data(listings: list, staging_schema: str, staging_table: str) -> None:
-    """
-    Inserts the extracted house listings into a staging table in the database.
-    Parameters:
-        listings (list): A list of dictionaries containing house listing details.
-        staging_schema (str): The schema name for the staging table.
-        staging_table (str): The name of the staging table. 
-    """
