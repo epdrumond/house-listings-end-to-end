@@ -62,6 +62,11 @@ def get_house_listings() -> None:
     Scrapes house listings from mapped parameters and saves them to HTML files.
     """
     BASE_URL = "https://www.zapimoveis.com.br/"
+    SCHEMA_NAME = "staging"
+    TABLE_NAME = "scraped_listings"
+
+    # Connect to the database
+    cur, conn = connect_to_db()
 
     # Map parameters to be used in setting up the scraping URLs
     url_params = map_parameters(URL_PARAMS)
@@ -69,9 +74,12 @@ def get_house_listings() -> None:
     # Loop through all combinations of parameters and scrape listings
     scraping_date = datetime.now().strftime("%Y-%m-%d")
 
-    param_combinations = itertools.product(*url_params.values())
-    param_combinations = [dict(zip(url_params.keys(), combination)) for combination in param_combinations]
-    for idx, combination in enumerate(param_combinations):
+    param_combinations = [
+        dict(zip(url_params.keys(), combination)) 
+        for combination in itertools.product(*url_params.values())
+    ]
+
+    for combination in param_combinations:
         # Generate an URL for each parameter combination
         transaction_type = combination["transacao"]
         base_location = combination["onde"][0]
@@ -89,14 +97,21 @@ def get_house_listings() -> None:
             continue
 
         # Extract relevant data from the listings
-        # print(combination_data["price"])
-        transformed_combination_data = transform_data(combination_data)
-        print(transformed_combination_data["price"].dropna())
+        combination_data = transform_data(combination_data)
+        combination_data["scraped_at"] = scraping_date
+        combination_data["combination_name"] = combination_name
+        
+        # Insert data in the database
+        insert_scraping_data(
+            cur=cur,
+            conn=conn,
+            schema_name=SCHEMA_NAME,
+            table_name=TABLE_NAME,
+            data=combination_data.head(5)
+        )
         break
 
 if __name__ == "__main__":
     get_house_listings()
-    
-    
 
         

@@ -2,10 +2,12 @@ import urllib.parse
 import unicodedata
 from unidecode import unidecode
 import pandas as pd
+from typing import Any
 
 import os
 from dotenv import load_dotenv
 import psycopg2
+from psycopg2.extensions import connection as PGConnection, cursor as PGCursor
 
 def build_location_query(state, city, latitude, longitude):
     ''''
@@ -81,7 +83,7 @@ def map_parameters(params: dict) -> dict:
     return url_params
 
 
-def connect_to_db() -> str:
+def connect_to_db() -> tuple[PGCursor, PGConnection]:
     """
     Connects to the SQLite database.
 
@@ -125,7 +127,7 @@ def transform_data(data: pd.DataFrame) -> pd.DataFrame:
     transformed_data = data.copy()
 
     # Field transform: link
-    transformed_data["id"] = [
+    transformed_data["listing_id"] = [
         link.split("-id-")[1].split("/")[0] 
         for link in transformed_data["link"]
     ]
@@ -143,18 +145,18 @@ def transform_data(data: pd.DataFrame) -> pd.DataFrame:
     
     # Field transform: size
     transformed_data["size_m2"] = [
-        int(size.replace("Tamanho do imóvel ", "").split(" m²")[0])
+        int(size.replace("Tamanho do imóvel ", "").split(" m²")[0].replace(".", ""))
         for size in transformed_data["size"]
     ]
     transformed_data.drop(columns=["size"], inplace=True)
 
-    #Field transform: bedrooms 
+    # Field transform: bedrooms 
     transformed_data["bedrooms"] = [
         int(bedrooms.replace("Quantidade de quartos ", ""))
         for bedrooms in transformed_data["bedrooms"].fillna("0")
     ]
 
-    #Field transform: bathrooms 
+    # Field transform: bathrooms 
     transformed_data["bathrooms"] = [
         int(bathrooms.replace("Quantidade de banheiros ", ""))
         for bathrooms in transformed_data["bathrooms"].fillna("0")
@@ -166,21 +168,21 @@ def transform_data(data: pd.DataFrame) -> pd.DataFrame:
         for parking in transformed_data["parking_spaces"].fillna("0")
     ]
 
-    #Field transform: price 
+    # Field transform: price 
     transformed_data["iptu"] = [
-        price.split("IPTU R$ ")[1] 
+        price.split("IPTU R$ ")[1].replace(".", "")
         if "IPTU R$ " in price 
         else None
         for price in transformed_data["price"]
     ]
-    transformed_data["condominium"] = [
-        price.split("Cond. R$ ")[1].split("•")[0]
+    transformed_data["condominium_fee"] = [
+        price.split("Cond. R$ ")[1].split("•")[0].replace(".", "")
         if "Cond. R$ " in price 
         else None
         for price in transformed_data["price"]
     ]
     transformed_data["price"] = [
-        price.split("/mês")[0].replace("R$ ", "")
+        price.split("/mês")[0].replace("R$ ", "").replace(".", "")
         if "R$ " in price 
         else None
         for price in transformed_data["price"]
@@ -189,7 +191,26 @@ def transform_data(data: pd.DataFrame) -> pd.DataFrame:
     # Additional transformations can be added here as needed
     return transformed_data
 
-def insert_raw_data(cur, conn, schema_name: str, table_name: str, data: list) -> None:
+def adjust_val_for_insertion(val: Any) -> str:
+    """
+    Transform the provided value in order to make it suitbale for a SQL insert statement
+
+    Parameter:
+        val (Any): Value of any data type
+
+    Returns:
+        str: Value properly transformed and formatted as a string
+    """
+    if val is None:
+        return "NULL"
+    elif isinstance(val, int):
+        return str(val)
+    elif len(val) == 0:
+        return "NULL"
+    elif isinstance(val, str): 
+        return "'" + val + "'"
+
+def insert_scraping_data(cur, conn, schema_name: str, table_name: str, data: pd.DataFrame) -> None:
     """
     Inserts raw data into the specified table in the database.
 
@@ -200,16 +221,20 @@ def insert_raw_data(cur, conn, schema_name: str, table_name: str, data: list) ->
         table_name (str): The name of the table to insert data into.
         data (list): A list of dictionaries containing the data to be inserted.
     """
-    if not data:
-        return
-    
-    columns = data[0].keys()
-    values = [[item[col] for col in columns] for item in data]
+    columns = data.columns.to_list()
+    values = data.values
 
-    insert_query = f"INSERT INTO {table_name} ({', '.join(columns)}) VALUES %s"
-    
-    psycopg2.extras.execute_values(cur, insert_query, values)
-    conn.commit()
+    insert_query = f"INSERT INTO {schema_name}.{table_name} ({', '.join(columns)}) VALUES "
+    for row in values: 
+        insert_query+= "(" + ", ".join([
+            adjust_val_for_insertion(val) for val in row
+        ]) + "),"
+
+    insert_query = insert_query[:-1] + ";"
+
+    print(insert_query)
+    cur.execute(insert_query)
+    # conn.commit()
 
 if __name__ == "__main__":
     pass
